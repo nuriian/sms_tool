@@ -319,8 +319,8 @@ if (!strcmp("recv", argv[0])) {
 		}
 	}
 
-	// Process only the latest 4 messages
-	int start_idx = (total_msgs > 4) ? total_msgs - 4 : 0;
+	// Process only the latest 6 messages
+	int start_idx = (total_msgs > 6) ? total_msgs - 4 : 0;
 	if (jsonoutput == 1) {
 		printf("{\"msg\":[");
 	}
@@ -328,6 +328,8 @@ if (!strcmp("recv", argv[0])) {
 		// Fetch each message by index
 		snprintf(buf, sizeof(buf), "AT+CMGR=%d\r\n", idx[i]);
 		fputs(buf, pf);
+	        fflush(pf);
+	        sleep(1);
 		while (fgets(buf, sizeof buf, pfi)) {
 			if (starts_with("OK", buf))
 				break;
