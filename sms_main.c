@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 
 	if (!strcmp("recv", argv[0]))
 	{
-		alarm(10);
+		alarm(20);
 		if (strlen(storage) > 0) {
 			fputs("AT+CPMS=\"", pf);
 			fputs(storage, pf);
@@ -309,35 +309,41 @@ int main(int argc, char* argv[])
 		int idx[1024];
 		int count  = 0;
 
-		    while (1) {
-			if (!fgets(buf, sizeof(buf), pfi)) {
-			    fprintf(stderr, "Error reading from modem\n");
-			    break; // Exit if read fails
-			}
-		
-			printf("Received line: %s", buf); // Log every line received
-			
-			if (starts_with("OK", buf)) {
-			    printf("Reached end of responses with OK\n");
-			    break; // End of responses
-			}
-		
-			if (starts_with("+CMGL:", buf)) {
-			    if (sscanf(buf, "+CMGL: %d,", &idx[count]) != 1) {
-				fprintf(stderr, "Unparsable CMGL response: %s\n", buf);
-				continue; // Skip unparseable responses
-			    }
-			    printf("Parsed index: %d\n", idx[count]);
-			    if (!fgets(buf, sizeof(buf), pfi)) {
-				fprintf(stderr, "Error reading PDU for index %d\n", count);
-				continue; // Skip if we can't read the content
-			    }
-			    printf("PDU for index %d: %s", idx[count], buf);
-			    // Continue with your PDU processing...
-		
-			    count++; // Increment the count for each valid message
-			}
+		while (1) {
+		    if (!fgets(buf, sizeof(buf), pfi)) {
+		        fprintf(stderr, "Error reading from modem\n");
+		        break; // Exit if read fails
 		    }
+		
+		    printf("Received line: %s", buf); // Log every line received
+		
+		    if (starts_with("OK", buf)) {
+		        printf("Reached end of responses with OK\n");
+		        break; // End of responses
+		    }
+		
+		    if (starts_with("ERROR", buf)) {
+		        fprintf(stderr, "Received ERROR from modem\n");
+		        break; // Handle error if encountered
+		    }
+		
+		    if (starts_with("+CMGL:", buf)) {
+		        if (sscanf(buf, "+CMGL: %d,", &idx[count]) != 1) {
+		            fprintf(stderr, "Unparsable CMGL response: %s\n", buf);
+		            continue; // Skip unparseable responses
+		        }
+		        printf("Parsed index: %d\n", idx[count]);
+		        if (!fgets(buf, sizeof(buf), pfi)) {
+		            fprintf(stderr, "Error reading PDU for index %d\n", count);
+		            continue; // Skip if we can't read the content
+		        }
+		        printf("PDU for index %d: %s", idx[count], buf);
+		        // Continue with your PDU processing...
+		
+		        count++; // Increment the count for each valid message
+		    }
+		}
+
 		    printf("Total messages processed: %d\n", count);
 
 	}
