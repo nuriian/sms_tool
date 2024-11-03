@@ -328,7 +328,7 @@ if (!strcmp("recv", argv[0])) {
 		// Fetch each message by index
 		snprintf(buf, sizeof(buf), "AT+CMGR=%d\r\n", idx[i]);
 		fputs(buf, pf);
-	        sleep(1);
+	        fflush(pf);
 		while (fgets(buf, sizeof buf, pfi)) {
 			if (starts_with("OK", buf))
 				break;
