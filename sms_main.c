@@ -312,7 +312,7 @@ if (!strcmp("recv", argv[0])) {
     fputs("AT+CMGL=4\r\n", pf);
     fflush(pf);
 
-    char full_response[8192] = {0}; // Large buffer to store entire response
+    char full_response[16384] = {0}; // Large buffer to store entire response
     char *response_ptr = full_response;
 
     // Read entire modem response into full_response buffer
