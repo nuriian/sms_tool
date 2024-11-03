@@ -289,7 +289,6 @@ int main(int argc, char* argv[])
 	}
 
 if (!strcmp("recv", argv[0])) {
-alarm(10);
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
 
@@ -359,6 +358,9 @@ alarm(10);
                     }
                 } else {
                     int l = strlen(msg_content);
+			if (l <= 0) {
+				continue;
+			}
                     for (int j = 0; j < l; j += 2) {
                         pdu[j / 2] = 16 * char_to_hex(msg_content[j]) + char_to_hex(msg_content[j + 1]);
                     }
@@ -374,7 +376,7 @@ alarm(10);
                     int skip_bytes;
 		    int sms_len;
 
-		    if (l > 0 && pdu && sms_time && phone_str && sms_txt && tp_dcs_type) {
+		    if (pdu) {
                         sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
 		   	if (sms_len <= 0) {
                         	continue;
@@ -466,6 +468,7 @@ alarm(10);
     if (jsonoutput == 1) {
         printf("]}\n");
     }
+alarm(10);
 }
 
 
