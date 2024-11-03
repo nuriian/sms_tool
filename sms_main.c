@@ -393,6 +393,15 @@ alarm(10);
                         printf("Date/Time: %s\n", time_data_str);
                     }
 
+			if(total_parts > 0) {
+				if(jsonoutput == 1) {
+					printf("\"reference\":%d,\"part\":%d,\"total\":%d,", ref_number, part_number, total_parts);
+				} else {
+					printf("Reference number: %d\n", ref_number);
+					printf("SMS segment %d of %d\n", part_number, total_parts);
+				}
+			}
+
                     if (jsonoutput == 1) {
                         printf("\"content\":\"");
                     }
@@ -444,7 +453,6 @@ alarm(10);
 
         // Move to the next message
         if (next_msg) {
-		sleep(1)
             *next_msg = '+';  // Restore "+CMGL:" in full_response
             msg_start = next_msg;
         } else {
