@@ -288,78 +288,98 @@ int main(int argc, char* argv[])
 		fprintf(stderr,"reading port\n");
 	}
 
+
 if (!strcmp("recv", argv[0])) {
     alarm(10);
     if (strlen(storage) > 0) {
         fputs("AT+CPMS=\"", pf);
         fputs(storage, pf);
         fputs("\"\r\n", pf);
-        fflush(pf);  // Flush to ensure the command is sent immediately
+        fflush(pf);
         while (fgets(buf, sizeof(buf), pfi)) {
             if (starts_with("OK", buf))
                 break;
         }
     }
     fputs("AT+CMGF=0\r\n", pf);
-    fflush(pf);  // Flush to ensure the command is sent immediately
+    fflush(pf);
     while (fgets(buf, sizeof(buf), pfi)) {
         if (starts_with("OK", buf))
             break;
     }
 
-    // Kirim AT+CMGL="ALL" untuk mengambil semua pesan
+    // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
-    fflush(pf);  // Ensure the command is sent to modem
+    fflush(pf);
+
+    char full_response[8192] = {0}; // Large buffer to store entire response
+    char *response_ptr = full_response;
+
+    // Read entire modem response into full_response buffer
+    while (fgets(buf, sizeof(buf), pfi)) {
+        if (starts_with("OK", buf)) {
+            break;
+        }
+        strcat(response_ptr, buf);
+        response_ptr += strlen(buf);
+    }
 
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
     }
     int first_msg = 1;
 
-    while (fgets(buf, sizeof(buf), pfi)) {
-        if (starts_with("OK", buf)) {
-            break;
+    // Split full_response into individual messages
+    char *msg_start = strstr(full_response, "+CMGL:");
+    while (msg_start) {
+        // Find end of the current message or start of the next one
+        char *next_msg = strstr(msg_start + 1, "+CMGL:");
+        
+        // Temporarily end current message string for isolated parsing
+        if (next_msg) {
+            *next_msg = '\0';
         }
 
-        if (starts_with("+CMGL:", buf)) {  // Mulai pesan baru
-            if (!first_msg) {
-                if (jsonoutput == 1) {
-                    printf(",");
-                } else {
-                    printf("\n");
-                }
-            }
-            first_msg = 0;
-
+        if (!first_msg) {
             if (jsonoutput == 1) {
-                printf("{");
-            }
-
-            int msg_index;
-            sscanf(buf, "+CMGL: %d,", &msg_index);
-            if (jsonoutput == 1) {
-                printf("\"index\":%d,", msg_index);
+                printf(",");
             } else {
-                printf("MSG %d:\n", msg_index);
+                printf("\n");
             }
+        }
+        first_msg = 0;
 
-            // Ambil dan tampilkan konten pesan
-            while (fgets(buf, sizeof(buf), pfi)) {
-                if (starts_with("OK", buf) || starts_with("+CMGL:", buf)) {
-                    ungetc(buf[0], pfi);  // Kembalikan karakter pertama
+        if (jsonoutput == 1) {
+            printf("{");
+        }
+
+        int msg_index;
+        sscanf(msg_start, "+CMGL: %d,", &msg_index);
+        if (jsonoutput == 1) {
+            printf("\"index\":%d,", msg_index);
+        } else {
+            printf("MSG %d:\n", msg_index);
+        }
+
+        // Find the content of the message after "+CMGL" header
+        char *msg_content = strchr(msg_start, '\n');
+        if (msg_content) {
+            msg_content++; // Move to the start of message data
+            while (msg_content && *msg_content != '\0') {
+                if (*msg_content == '\n' || starts_with("+CMGL:", msg_content)) {
                     break;
                 }
 
                 if (rawoutput == 1) {
                     if (jsonoutput == 1) {
-                        printf("\"content\":\"%s\"", buf);
+                        printf("\"content\":\"%s\"", msg_content);
                     } else {
-                        printf("%s\n", buf);
+                        printf("%s\n", msg_content);
                     }
                 } else {
-                    int l = strlen(buf);
+                    int l = strlen(msg_content);
                     for (int j = 0; j < l; j += 2) {
-                        pdu[j / 2] = 16 * char_to_hex(buf[j]) + char_to_hex(buf[j + 1]);
+                        pdu[j / 2] = 16 * char_to_hex(msg_content[j]) + char_to_hex(msg_content[j + 1]);
                     }
 
                     time_t sms_time;
@@ -432,13 +452,27 @@ if (!strcmp("recv", argv[0])) {
                         printf("\n\n");
                     }
                 }
+
+                msg_content = strchr(msg_content + 1, '\n');
+                if (msg_content) {
+                    msg_content++;
+                }
             }
+        }
+
+        // Move to the next message
+        if (next_msg) {
+            *next_msg = '+';  // Restore "+CMGL:" in full_response
+            msg_start = next_msg;
+        } else {
+            break;
         }
     }
     if (jsonoutput == 1) {
         printf("]}\n");
     }
 }
+
 
 
 	if (!strcmp("delete",argv[0]))
