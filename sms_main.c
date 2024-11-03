@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 
 	if (!strcmp("recv", argv[0]))
 	{
-		alarm(10);
+		alarm(30);
 		if (strlen(storage) > 0) {
 			fputs("AT+CPMS=\"", pf);
 			fputs(storage, pf);
