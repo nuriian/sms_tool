@@ -294,12 +294,14 @@ if (!strcmp("recv", argv[0])) {
         fputs("AT+CPMS=\"", pf);
         fputs(storage, pf);
         fputs("\"\r\n", pf);
+        fflush(pf);  // Flush to ensure the command is sent immediately
         while (fgets(buf, sizeof(buf), pfi)) {
             if (starts_with("OK", buf))
                 break;
         }
     }
     fputs("AT+CMGF=0\r\n", pf);
+    fflush(pf);  // Flush to ensure the command is sent immediately
     while (fgets(buf, sizeof(buf), pfi)) {
         if (starts_with("OK", buf))
             break;
@@ -307,13 +309,16 @@ if (!strcmp("recv", argv[0])) {
 
     // Kirim AT+CMGL="ALL" untuk mengambil semua pesan
     fputs("AT+CMGL=4\r\n", pf);
+    fflush(pf);  // Ensure the command is sent to modem
+    sleep(1);    // Berikan waktu modem untuk memproses dan mengirimkan seluruh data
+
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
     }
     int first_msg = 1;
 
     while (fgets(buf, sizeof(buf), pfi)) {
-        if (starts_with("OK", buf)) {  // Deteksi akhir data
+        if (starts_with("OK", buf)) {
             break;
         }
 
@@ -331,7 +336,6 @@ if (!strcmp("recv", argv[0])) {
                 printf("{");
             }
 
-            // Dapatkan informasi pesan
             int msg_index;
             sscanf(buf, "+CMGL: %d,", &msg_index);
             if (jsonoutput == 1) {
@@ -343,7 +347,7 @@ if (!strcmp("recv", argv[0])) {
             // Ambil dan tampilkan konten pesan
             while (fgets(buf, sizeof(buf), pfi)) {
                 if (starts_with("OK", buf) || starts_with("+CMGL:", buf)) {
-                    ungetc(buf[0], pfi);  // Kembalikan karakter pertama untuk deteksi di loop luar
+                    ungetc(buf[0], pfi);  // Kembalikan karakter pertama
                     break;
                 }
 
@@ -374,7 +378,6 @@ if (!strcmp("recv", argv[0])) {
                         continue;
                     }
 
-                    // Detail pesan
                     if (jsonoutput == 1) {
                         printf("\"sender\":\"%s\",", phone_str);
                     } else {
@@ -389,7 +392,6 @@ if (!strcmp("recv", argv[0])) {
                         printf("Date/Time: %s\n", time_data_str);
                     }
 
-                    // Tampilkan konten pesan
                     if (jsonoutput == 1) {
                         printf("\"content\":\"");
                     }
@@ -438,6 +440,7 @@ if (!strcmp("recv", argv[0])) {
         printf("]}\n");
     }
 }
+
 
 	if (!strcmp("delete",argv[0]))
 	{
