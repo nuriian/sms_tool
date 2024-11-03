@@ -292,7 +292,6 @@ if (!strcmp("recv", argv[0])) {
 alarm(10);
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
-    fflush(pf);
 
     char full_response[8192] = {0}; // Large buffer to store entire response
     char *response_ptr = full_response;
@@ -375,7 +374,7 @@ alarm(10);
                     int skip_bytes;
 		    int sms_len;
 
-		    if (pdu) {
+		    if (pdu && sms_txt && l > 0) {
                         sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
 		   	if (sms_len <= 0) {
                         	continue;
