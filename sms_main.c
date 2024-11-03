@@ -305,7 +305,7 @@ if (!strcmp("recv", argv[0])) {
             break;
     }
 
-    // Gunakan AT+CMGL="ALL" untuk menampilkan semua pesan
+    // Kirim AT+CMGL="ALL" untuk mengambil semua pesan
     fputs("AT+CMGL=4\r\n", pf);
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
@@ -313,45 +313,47 @@ if (!strcmp("recv", argv[0])) {
     int first_msg = 1;
 
     while (fgets(buf, sizeof(buf), pfi)) {
-        if (starts_with("OK", buf)) {
+        if (starts_with("OK", buf)) {  // Deteksi akhir data
             break;
         }
 
-        if (starts_with("+CMGL:", buf)) {
-            // Proses header pesan
-            if (jsonoutput == 1) {
-                if (!first_msg) {
+        if (starts_with("+CMGL:", buf)) {  // Mulai pesan baru
+            if (!first_msg) {
+                if (jsonoutput == 1) {
                     printf(",");
+                } else {
+                    printf("\n");
                 }
-                first_msg = 0;
+            }
+            first_msg = 0;
+
+            if (jsonoutput == 1) {
                 printf("{");
-            } else {
-                printf("MSG:\n");
             }
 
-            // Parsing indeks dan metadata pesan jika diperlukan
+            // Dapatkan informasi pesan
             int msg_index;
             sscanf(buf, "+CMGL: %d,", &msg_index);
             if (jsonoutput == 1) {
                 printf("\"index\":%d,", msg_index);
+            } else {
+                printf("MSG %d:\n", msg_index);
             }
 
-            // Baca konten pesan
+            // Ambil dan tampilkan konten pesan
             while (fgets(buf, sizeof(buf), pfi)) {
                 if (starts_with("OK", buf) || starts_with("+CMGL:", buf)) {
+                    ungetc(buf[0], pfi);  // Kembalikan karakter pertama untuk deteksi di loop luar
                     break;
                 }
 
-                // Menangani konten PDU
                 if (rawoutput == 1) {
-                    // Tampilkan isi PDU secara mentah
                     if (jsonoutput == 1) {
                         printf("\"content\":\"%s\"", buf);
                     } else {
                         printf("%s\n", buf);
                     }
                 } else {
-                    // Dekode isi PDU
                     int l = strlen(buf);
                     for (int j = 0; j < l; j += 2) {
                         pdu[j / 2] = 16 * char_to_hex(buf[j]) + char_to_hex(buf[j + 1]);
@@ -372,7 +374,7 @@ if (!strcmp("recv", argv[0])) {
                         continue;
                     }
 
-                    // Tampilkan detail pesan yang didekode
+                    // Detail pesan
                     if (jsonoutput == 1) {
                         printf("\"sender\":\"%s\",", phone_str);
                     } else {
@@ -387,12 +389,12 @@ if (!strcmp("recv", argv[0])) {
                         printf("Date/Time: %s\n", time_data_str);
                     }
 
-                    // Tampilkan konten teks pesan
+                    // Tampilkan konten pesan
                     if (jsonoutput == 1) {
                         printf("\"content\":\"");
                     }
                     switch ((tp_dcs_type / 4) % 4) {
-                        case 0: {  // GSM 7-bit encoding
+                        case 0: {
                             int k = skip_bytes;
                             if (skip_bytes > 0) k = (skip_bytes * 8 + 6) / 7;
                             for (; k < sms_len; k++) {
@@ -404,7 +406,7 @@ if (!strcmp("recv", argv[0])) {
                             }
                             break;
                         }
-                        case 2: {  // UCS2 encoding
+                        case 2: {
                             for (int k = skip_bytes; k < sms_len; k += 2) {
                                 if (jsonoutput == 1) {
                                     print_json_escape_char(sms_txt[k], sms_txt[k + 1]);
