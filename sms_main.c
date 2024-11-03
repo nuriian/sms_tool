@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 
 if (!strcmp("recv", argv[0])) {
     // Request all messages and read them into a single buffer
-    fputs("AT+CMGL=\"ALL\"\r\n", pf);
+    fputs("AT+CMGL=4\r\n", pf);
     fflush(pf);
 
     char full_response[8192] = {0}; // Large buffer to store entire response
