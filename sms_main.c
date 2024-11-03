@@ -311,6 +311,7 @@ if (!strcmp("recv", argv[0])) {
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
     fflush(pf);
+    usleep(500000);
 
     char full_response[16384] = {0}; // Large buffer to store entire response
     char *response_ptr = full_response;
