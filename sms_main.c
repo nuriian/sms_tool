@@ -306,7 +306,7 @@ if (!strcmp("recv", argv[0])) {
     }
 
     // Gunakan AT+CMGL="ALL" untuk menampilkan semua pesan
-    fputs("AT+CMGL=4"\r\n", pf);
+    fputs("AT+CMGL=4\r\n", pf);
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
     }
