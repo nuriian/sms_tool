@@ -289,6 +289,7 @@ int main(int argc, char* argv[])
 	}
 
 if (!strcmp("recv", argv[0])) {
+alarm(10);
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
     fflush(pf);
@@ -443,6 +444,7 @@ if (!strcmp("recv", argv[0])) {
 
         // Move to the next message
         if (next_msg) {
+		sleep(1)
             *next_msg = '+';  // Restore "+CMGL:" in full_response
             msg_start = next_msg;
         } else {
