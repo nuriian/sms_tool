@@ -306,7 +306,7 @@ if (!strcmp("recv", argv[0])) {
 	}
 
 	// Use AT+CMGL="ALL" to list all messages and collect indices
-	fputs("AT+CMGL=\"ALL\"\r\n", pf);
+	fputs("AT+CMGL=4\r\n", pf);
 	int idx[1024];
 	int total_msgs = 0;
 	while (fgets(buf, sizeof buf, pfi)) {
