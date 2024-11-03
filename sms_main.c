@@ -288,64 +288,71 @@ int main(int argc, char* argv[])
 		fprintf(stderr,"reading port\n");
 	}
 
-	if (!strcmp("recv", argv[0]))
-	{
-		alarm(20);
-		if (strlen(storage) > 0) {
-			fputs("AT+CPMS=\"", pf);
-			fputs(storage, pf);
-			fputs("\"\r\n", pf);
-			while(fgets(buf, sizeof(buf), pfi)) {
-				if(starts_with("OK", buf))
-					break;
-			}
-		}
-		fputs("AT+CMGF=0\r\n", pf);
-		while(fgets(buf, sizeof(buf), pfi)) {
-			if(starts_with("OK", buf))
-				break;
-		}
-		fputs("AT+CMGL=4\r\n", pf);
-		int idx[1024];
-		int count  = 0;
-
-		while (1) {
-		    if (!fgets(buf, sizeof(buf), pfi)) {
-		        fprintf(stderr, "Error reading from modem\n");
-		        break; // Exit if read fails
-		    }
-		
-		    printf("Received line: %s", buf); // Log every line received
-		
-		    if (starts_with("OK", buf)) {
-		        printf("Reached end of responses with OK\n");
-		        break; // End of responses
-		    }
-		
-		    if (starts_with("ERROR", buf)) {
-		        fprintf(stderr, "Received ERROR from modem\n");
-		        break; // Handle error if encountered
-		    }
-		
-		    if (starts_with("+CMGL:", buf)) {
-		        if (sscanf(buf, "+CMGL: %d,", &idx[count]) != 1) {
-		            fprintf(stderr, "Unparsable CMGL response: %s\n", buf);
-		            continue; // Skip unparseable responses
-		        }
-		        printf("Parsed index: %d\n", idx[count]);
-		        if (!fgets(buf, sizeof(buf), pfi)) {
-		            fprintf(stderr, "Error reading PDU for index %d\n", count);
-		            continue; // Skip if we can't read the content
-		        }
-		        printf("PDU for index %d: %s", idx[count], buf);
-		        // Continue with your PDU processing...
-		
-		        count++; // Increment the count for each valid message
-		    }
-		}
-
-		    printf("Total messages processed: %d\n", count);
-
+	if (!strcmp("recv", argv[0])) {
+	    alarm(20);
+	    if (strlen(storage) > 0) {
+	        fputs("AT+CPMS=\"", pf);
+	        fputs(storage, pf);
+	        fputs("\"\r\n", pf);
+	        while (fgets(buf, sizeof(buf), pfi)) {
+	            if (starts_with("OK", buf))
+	                break;
+	        }
+	    }
+	    fputs("AT+CMGF=0\r\n", pf);
+	    while (fgets(buf, sizeof(buf), pfi)) {
+	        if (starts_with("OK", buf))
+	            break;
+	    }
+	    fputs("AT+CMGL=4\r\n", pf);
+	    
+	    int idx[1024];
+	    char messages[1024][161];  // Store message contents (adjust size if needed)
+	    int count = 0;
+	
+	    while (1) {
+	        if (!fgets(buf, sizeof(buf), pfi)) {
+	            fprintf(stderr, "Error reading from modem\n");
+	            break; // Exit if read fails
+	        }
+	
+	        printf("Received line: %s", buf); // Log every line received
+	
+	        if (starts_with("OK", buf)) {
+	            printf("Reached end of responses with OK\n");
+	            break; // End of responses
+	        }
+	
+	        if (starts_with("ERROR", buf)) {
+	            fprintf(stderr, "Received ERROR from modem\n");
+	            break; // Handle error if encountered
+	        }
+	
+	        if (starts_with("+CMGL:", buf)) {
+	            if (sscanf(buf, "+CMGL: %d,", &idx[count]) != 1) {
+	                fprintf(stderr, "Unparsable CMGL response: %s\n", buf);
+	                continue; // Skip unparseable responses
+	            }
+	            printf("Parsed index: %d\n", idx[count]);
+	            
+	            // Read the actual message content
+	            while (fgets(buf, sizeof(buf), pfi)) {
+	                // Check if we have reached the next message or the end of responses
+	                if (starts_with("+CMGL:", buf) || starts_with("OK", buf)) {
+	                    // If we encounter another message header, break the inner loop
+	                    break;
+	                }
+	                // Store the message in the array (trim newline)
+	                strncpy(messages[count], buf, sizeof(messages[count]) - 1);
+	                messages[count][sizeof(messages[count]) - 1] = '\0'; // Ensure null-termination
+	                printf("PDU for index %d: %s", idx[count], messages[count]);
+	            }
+	            count++; // Increment the count for each valid message
+	        }
+	    }
+	
+	    printf("Total messages processed: %d\n", count);
+	    // Optionally, process messages stored in the `messages` array as needed
 	}
 
 	if (!strcmp("delete",argv[0]))
