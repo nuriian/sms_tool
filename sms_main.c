@@ -325,7 +325,6 @@ int main(int argc, char* argv[])
 				}
 				if(!fgets(buf, sizeof buf, pfi))
 					fprintf(stderr,"reading pdu %d\n", count);
-					while(fgets(buf, sizeof buf, pfi) && !starts_with("OK", buf));
 
 				if(jsonoutput == 1) {
 					if (count > 0) {
