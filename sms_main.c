@@ -18,6 +18,8 @@
 
 #include "pdu_lib/pdu.h"
 
+#define SMS_MAX_PDU_LENGTH 280
+
 static void usage()
 {
 	fprintf(stderr,
@@ -290,7 +292,7 @@ int main(int argc, char* argv[])
 
 	if (!strcmp("recv", argv[0]))
 	{
-		alarm(30);
+		alarm(60);
 		if (strlen(storage) > 0) {
 			fputs("AT+CPMS=\"", pf);
 			fputs(storage, pf);
