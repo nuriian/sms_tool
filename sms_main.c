@@ -308,145 +308,37 @@ int main(int argc, char* argv[])
 		fputs("AT+CMGL=4\r\n", pf);
 		int idx[1024];
 		int count  = 0;
-		if(jsonoutput == 1) {
-			printf("{\"msg\":[");
-		}
-		while(fgets(buf, sizeof buf, pfi))
-		{
-			printf("Received line: %s\n", buf);
-			if(starts_with("OK", buf))
-				break;
-			if(starts_with("+CMGL:", buf))
-			{
-				if(sscanf(buf, "+CMGL: %d,", &idx[count]) != 1)
-				{
-					fprintf(stderr, "unparsable CMGL response: %s\n", buf+7);
-					continue;
-				}
-				if(!fgets(buf, sizeof buf, pfi))
-					fprintf(stderr,"reading pdu %d\n", count);
 
-				if(jsonoutput == 1) {
-					if (count > 0) {
-						printf(",");
-					}
-					printf("{\"index\":%d,",idx[count]);
-				} else {
-					printf("MSG: %d\n",idx[count]);
-				}
-
-				++count;
-
-				if(rawoutput == 1)
-				{
-					if(jsonoutput == 1) {
-						printf("\"content\":\"%s\"", buf);
-					} else {
-						printf("%s\n", buf);
-					}
-					continue;
-				}
-
-				int l = strlen(buf);
-				int i;
-				for(i = 0; i < l; i+=2)
-					pdu[i/2] = 16*char_to_hex(buf[i]) + char_to_hex(buf[i+1]);
-
-				time_t sms_time;
-				char phone_str[40];
-				char sms_txt[161];
-
-				int tp_dcs_type;
-				int ref_number;
-				int total_parts;
-				int part_number;
-				int skip_bytes;
-
-				int sms_len = pdu_decode(pdu, l/2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt),&tp_dcs_type,&ref_number,&total_parts,&part_number,&skip_bytes);
-				if (sms_len <= 0) {
-					fprintf(stderr, "error decoding pdu %d: %s\n", count-1, buf);
-					if(jsonoutput == 1) {
-						printf("\"error\":\"error decoding pdu\",\"sender\":\"\",\"timestamp\":\"\",\"content\":\"\"}");
-					}
-					continue;
-				}
-
-				if(jsonoutput == 1) {
-					printf("\"sender\":\"%s\",",phone_str);
-				} else {
-					printf("From: %s\n",phone_str);
-				}
-				char time_data_str[64];
-				strftime(time_data_str, 64, dateformat, gmtime(&sms_time));
-				if(jsonoutput == 1) {
-					printf("\"timestamp\":\"%s\",",time_data_str);
-				} else {
-					printf("Date/Time: %s\n",time_data_str);
-				}
-
-				if(total_parts > 0) {
-					if(jsonoutput == 1) {
-						printf("\"reference\":%d,\"part\":%d,\"total\":%d,", ref_number, part_number, total_parts);
-					} else {
-						printf("Reference number: %d\n", ref_number);
-						printf("SMS segment %d of %d\n", part_number, total_parts);
-					}
-				}
-
-				if(jsonoutput == 1) {
-					printf("\"content\":\"");
-				}
-				switch((tp_dcs_type / 4) % 4)
-				{
-					case 0:
-					{
-						// GSM 7 bit
-						int i = skip_bytes;
-						if(skip_bytes > 0) i = (skip_bytes*8+6)/7;
-						for(; i<sms_len; i++)
-						{
-							if(jsonoutput == 1) {
-								print_json_escape_char(0x0, sms_txt[i]);
-							} else {
-								printf("%c", sms_txt[i]);
-							}
-						}
-						break;
-					}
-					case 2:
-					{
-						// UCS2
-						for(int i = skip_bytes;i<sms_len;i+=2)
-						{
-							if(jsonoutput == 1) {
-								print_json_escape_char(sms_txt[i],sms_txt[i+1]);
-							} else {
-								int ucs2_char = 0x000000FF&sms_txt[i+1];
-								ucs2_char|=(0x0000FF00&(sms_txt[i]<<8));
-								unsigned char utf8_char[5];
-								int len = ucs2_to_utf8(ucs2_char,utf8_char);
-								int j;
-								for(j=0;j<len;j++)
-								{
-									printf("%c", utf8_char[j]);
-								}
-							}
-						}
-						break;
-					}
-					default:
-						break;
-				}
-				if(jsonoutput == 1) {
-					printf("\"}");
-				} else {
-					printf("\n\n");
-				}
+		    while (1) {
+			if (!fgets(buf, sizeof(buf), pfi)) {
+			    fprintf(stderr, "Error reading from modem\n");
+			    break; // Exit if read fails
 			}
-		}
-		if(jsonoutput == 1) {
-			printf("]}\n");
-		}
+		
+			printf("Received line: %s", buf); // Log every line received
+			
+			if (starts_with("OK", buf)) {
+			    printf("Reached end of responses with OK\n");
+			    break; // End of responses
+			}
+		
+			if (starts_with("+CMGL:", buf)) {
+			    if (sscanf(buf, "+CMGL: %d,", &idx[count]) != 1) {
+				fprintf(stderr, "Unparsable CMGL response: %s\n", buf);
+				continue; // Skip unparseable responses
+			    }
+			    printf("Parsed index: %d\n", idx[count]);
+			    if (!fgets(buf, sizeof(buf), pfi)) {
+				fprintf(stderr, "Error reading PDU for index %d\n", count);
+				continue; // Skip if we can't read the content
+			    }
+			    printf("PDU for index %d: %s", idx[count], buf);
+			    // Continue with your PDU processing...
+		
+			    count++; // Increment the count for each valid message
+			}
+		    }
+		    printf("Total messages processed: %d\n", count);
 
 	}
 
