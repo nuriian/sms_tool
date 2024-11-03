@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
 				break;
 		}
 		fputs("AT+CMGL=4\r\n", pf);
-		int idx[1024];
+		int idx[2048];
 		int count  = 0;
 		if(jsonoutput == 1) {
 			printf("{\"msg\":[");
