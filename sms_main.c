@@ -241,7 +241,7 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "failed to make serial port linebuffered\n");
 	}
 
-	char buf[2048];
+	char buf[1024];
 	if (!strcmp("send", argv[0]))
 	{
 		int pdu_len = pdu_encode("", argv[1], argv[2], pdu, sizeof(pdu));
@@ -293,6 +293,7 @@ int main(int argc, char* argv[])
 		alarm(10);
 		if (strlen(storage) > 0) {
 			fputs("AT+CPMS=\"", pf);
+			fflush(pf);
 			fputs(storage, pf);
 			fputs("\"\r\n", pf);
 			while(fgets(buf, sizeof(buf), pfi)) {
@@ -301,12 +302,14 @@ int main(int argc, char* argv[])
 			}
 		}
 		fputs("AT+CMGF=0\r\n", pf);
+		fflush(pf);
 		while(fgets(buf, sizeof(buf), pfi)) {
 			if(starts_with("OK", buf))
 				break;
 		}
 		fputs("AT+CMGL=4\r\n", pf);
-		int idx[2048];
+		fflush(pf);
+		int idx[1024];
 		int count  = 0;
 		if(jsonoutput == 1) {
 			printf("{\"msg\":[");
