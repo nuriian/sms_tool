@@ -373,9 +373,10 @@ alarm(10);
                     int total_parts;
                     int part_number;
                     int skip_bytes;
+		    int sms_len;
 
 		    if (pdu) {
-                        int sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
+                        sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
 		   	if (sms_len <= 0) {
                         	continue;
                     	}
