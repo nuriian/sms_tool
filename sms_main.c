@@ -313,6 +313,7 @@ int main(int argc, char* argv[])
 		}
 		while(fgets(buf, sizeof buf, pfi))
 		{
+			printf("Received line: %s\n", buf);
 			if(starts_with("OK", buf))
 				break;
 			if(starts_with("+CMGL:", buf))
