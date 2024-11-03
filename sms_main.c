@@ -289,166 +289,153 @@ int main(int argc, char* argv[])
 	}
 
 if (!strcmp("recv", argv[0])) {
-	alarm(10);
-	if (strlen(storage) > 0) {
-		fputs("AT+CPMS=\"", pf);
-		fputs(storage, pf);
-		fputs("\"\r\n", pf);
-		while (fgets(buf, sizeof(buf), pfi)) {
-			if (starts_with("OK", buf))
-				break;
-		}
-	}
-	fputs("AT+CMGF=0\r\n", pf);
-	while (fgets(buf, sizeof(buf), pfi)) {
-		if (starts_with("OK", buf))
-			break;
-	}
+    alarm(10);
+    if (strlen(storage) > 0) {
+        fputs("AT+CPMS=\"", pf);
+        fputs(storage, pf);
+        fputs("\"\r\n", pf);
+        while (fgets(buf, sizeof(buf), pfi)) {
+            if (starts_with("OK", buf))
+                break;
+        }
+    }
+    fputs("AT+CMGF=0\r\n", pf);
+    while (fgets(buf, sizeof(buf), pfi)) {
+        if (starts_with("OK", buf))
+            break;
+    }
 
-	// Use AT+CMGL="ALL" to list all messages and collect indices
-	fputs("AT+CMGL=4\r\n", pf);
-	int idx[1024];
-	int total_msgs = 0;
-	while (fgets(buf, sizeof buf, pfi)) {
-		if (starts_with("OK", buf))
-			break;
-		if (starts_with("+CMGL:", buf)) {
-			if (sscanf(buf, "+CMGL: %d,", &idx[total_msgs]) == 1) {
-				total_msgs++;
-			}
-		}
-	}
+    // Gunakan AT+CMGL="ALL" untuk menampilkan semua pesan
+    fputs("AT+CMGL=4"\r\n", pf);
+    if (jsonoutput == 1) {
+        printf("{\"msg\":[");
+    }
+    int first_msg = 1;
 
-	// Process only the latest 6 messages
-	int start_idx = (total_msgs > 6) ? total_msgs - 4 : 0;
-	if (jsonoutput == 1) {
-		printf("{\"msg\":[");
-	}
-	for (int i = start_idx; i < total_msgs; i++) {
-		// Fetch each message by index
-		snprintf(buf, sizeof(buf), "AT+CMGR=%d\r\n", idx[i]);
-		fputs(buf, pf);
-	        fflush(pf);
-		while (fgets(buf, sizeof buf, pfi)) {
-			if (starts_with("OK", buf))
-				break;
-			if (starts_with("+CMGR:", buf)) {
-				// Process message header
-				if (jsonoutput == 1) {
-					if (i > start_idx) {
-						printf(",");
-					}
-					printf("{\"index\":%d,", idx[i]);
-				} else {
-					printf("MSG: %d\n", idx[i]);
-				}
-			} else {
-				// Process message content (PDU)
-				if (rawoutput == 1) {
-					// Output raw PDU content
-					if (jsonoutput == 1) {
-						printf("\"content\":\"%s\"", buf);
-					} else {
-						printf("%s\n", buf);
-					}
-				} else {
-					// Decode PDU content
-					int l = strlen(buf);
-					for (int j = 0; j < l; j += 2) {
-						pdu[j / 2] = 16 * char_to_hex(buf[j]) + char_to_hex(buf[j + 1]);
-					}
+    while (fgets(buf, sizeof(buf), pfi)) {
+        if (starts_with("OK", buf)) {
+            break;
+        }
 
-					time_t sms_time;
-					char phone_str[40];
-					char sms_txt[161];
+        if (starts_with("+CMGL:", buf)) {
+            // Proses header pesan
+            if (jsonoutput == 1) {
+                if (!first_msg) {
+                    printf(",");
+                }
+                first_msg = 0;
+                printf("{");
+            } else {
+                printf("MSG:\n");
+            }
 
-					int tp_dcs_type;
-					int ref_number;
-					int total_parts;
-					int part_number;
-					int skip_bytes;
+            // Parsing indeks dan metadata pesan jika diperlukan
+            int msg_index;
+            sscanf(buf, "+CMGL: %d,", &msg_index);
+            if (jsonoutput == 1) {
+                printf("\"index\":%d,", msg_index);
+            }
 
-					int sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
-					if (sms_len <= 0) {
-						// fprintf(stderr, "error decoding PDU for message %d: %s\n", idx[i], buf);
-						continue;
-					}
+            // Baca konten pesan
+            while (fgets(buf, sizeof(buf), pfi)) {
+                if (starts_with("OK", buf) || starts_with("+CMGL:", buf)) {
+                    break;
+                }
 
-					// Output decoded message details
-					if (jsonoutput == 1) {
-						printf("\"sender\":\"%s\",", phone_str);
-					} else {
-						printf("From: %s\n", phone_str);
-					}
+                // Menangani konten PDU
+                if (rawoutput == 1) {
+                    // Tampilkan isi PDU secara mentah
+                    if (jsonoutput == 1) {
+                        printf("\"content\":\"%s\"", buf);
+                    } else {
+                        printf("%s\n", buf);
+                    }
+                } else {
+                    // Dekode isi PDU
+                    int l = strlen(buf);
+                    for (int j = 0; j < l; j += 2) {
+                        pdu[j / 2] = 16 * char_to_hex(buf[j]) + char_to_hex(buf[j + 1]);
+                    }
 
-					char time_data_str[64];
-					strftime(time_data_str, sizeof(time_data_str), dateformat, gmtime(&sms_time));
-					if (jsonoutput == 1) {
-						printf("\"timestamp\":\"%s\",", time_data_str);
-					} else {
-						printf("Date/Time: %s\n", time_data_str);
-					}
+                    time_t sms_time;
+                    char phone_str[40];
+                    char sms_txt[161];
 
-					// Handle multipart messages if present
-					if (total_parts > 0) {
-						if (jsonoutput == 1) {
-							printf("\"reference\":%d,\"part\":%d,\"total\":%d,", ref_number, part_number, total_parts);
-						} else {
-							printf("Reference number: %d\n", ref_number);
-							printf("SMS segment %d of %d\n", part_number, total_parts);
-						}
-					}
+                    int tp_dcs_type;
+                    int ref_number;
+                    int total_parts;
+                    int part_number;
+                    int skip_bytes;
 
-					// Output message text based on encoding type
-					if (jsonoutput == 1) {
-						printf("\"content\":\"");
-					}
-					switch ((tp_dcs_type / 4) % 4) {
-						case 0: {  // GSM 7-bit encoding
-							int k = skip_bytes;
-							if (skip_bytes > 0) k = (skip_bytes * 8 + 6) / 7;
-							for (; k < sms_len; k++) {
-								if (jsonoutput == 1) {
-									print_json_escape_char(0x0, sms_txt[k]);
-								} else {
-									printf("%c", sms_txt[k]);
-								}
-							}
-							break;
-						}
-						case 2: {  // UCS2 encoding
-							for (int k = skip_bytes; k < sms_len; k += 2) {
-								if (jsonoutput == 1) {
-									print_json_escape_char(sms_txt[k], sms_txt[k + 1]);
-								} else {
-									int ucs2_char = 0x000000FF & sms_txt[k + 1];
-									ucs2_char |= (0x0000FF00 & (sms_txt[k] << 8));
-									unsigned char utf8_char[5];
-									int len = ucs2_to_utf8(ucs2_char, utf8_char);
-									for (int m = 0; m < len; m++) {
-										printf("%c", utf8_char[m]);
-									}
-								}
-							}
-							break;
-						}
-						default:
-							break;
-					}
-					if (jsonoutput == 1) {
-						printf("\"}");
-					} else {
-						printf("\n\n");
-					}
-				}
-			}
-		}
-	}
-	if (jsonoutput == 1) {
-		printf("]}\n");
-	}
+                    int sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
+                    if (sms_len <= 0) {
+                        continue;
+                    }
+
+                    // Tampilkan detail pesan yang didekode
+                    if (jsonoutput == 1) {
+                        printf("\"sender\":\"%s\",", phone_str);
+                    } else {
+                        printf("From: %s\n", phone_str);
+                    }
+
+                    char time_data_str[64];
+                    strftime(time_data_str, sizeof(time_data_str), dateformat, gmtime(&sms_time));
+                    if (jsonoutput == 1) {
+                        printf("\"timestamp\":\"%s\",", time_data_str);
+                    } else {
+                        printf("Date/Time: %s\n", time_data_str);
+                    }
+
+                    // Tampilkan konten teks pesan
+                    if (jsonoutput == 1) {
+                        printf("\"content\":\"");
+                    }
+                    switch ((tp_dcs_type / 4) % 4) {
+                        case 0: {  // GSM 7-bit encoding
+                            int k = skip_bytes;
+                            if (skip_bytes > 0) k = (skip_bytes * 8 + 6) / 7;
+                            for (; k < sms_len; k++) {
+                                if (jsonoutput == 1) {
+                                    print_json_escape_char(0x0, sms_txt[k]);
+                                } else {
+                                    printf("%c", sms_txt[k]);
+                                }
+                            }
+                            break;
+                        }
+                        case 2: {  // UCS2 encoding
+                            for (int k = skip_bytes; k < sms_len; k += 2) {
+                                if (jsonoutput == 1) {
+                                    print_json_escape_char(sms_txt[k], sms_txt[k + 1]);
+                                } else {
+                                    int ucs2_char = 0x000000FF & sms_txt[k + 1];
+                                    ucs2_char |= (0x0000FF00 & (sms_txt[k] << 8));
+                                    unsigned char utf8_char[5];
+                                    int len = ucs2_to_utf8(ucs2_char, utf8_char);
+                                    for (int m = 0; m < len; m++) {
+                                        printf("%c", utf8_char[m]);
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                    if (jsonoutput == 1) {
+                        printf("\"}");
+                    } else {
+                        printf("\n\n");
+                    }
+                }
+            }
+        }
+    }
+    if (jsonoutput == 1) {
+        printf("]}\n");
+    }
 }
-
 
 	if (!strcmp("delete",argv[0]))
 	{
