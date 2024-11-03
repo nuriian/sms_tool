@@ -370,7 +370,7 @@ if (!strcmp("recv", argv[0])) {
 
 					int sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
 					if (sms_len <= 0) {
-						fprintf(stderr, "error decoding PDU for message %d: %s\n", idx[i], buf);
+						// fprintf(stderr, "error decoding PDU for message %d: %s\n", idx[i], buf);
 						continue;
 					}
 
