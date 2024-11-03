@@ -310,7 +310,6 @@ if (!strcmp("recv", argv[0])) {
     // Kirim AT+CMGL="ALL" untuk mengambil semua pesan
     fputs("AT+CMGL=4\r\n", pf);
     fflush(pf);  // Ensure the command is sent to modem
-    sleep(1);    // Berikan waktu modem untuk memproses dan mengirimkan seluruh data
 
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
