@@ -291,6 +291,17 @@ int main(int argc, char* argv[])
 
     if (!strcmp("recv", argv[0])) {
         alarm(10);
+        if (strlen(storage) > 0) {
+            fputs("AT+CPMS=\"", pf);
+            fputs(storage, pf);
+            fputs("\"\r\n", pf);
+
+            while(fgets(buf, sizeof(buf), pfi)) {
+                if (starts_with("OK", buf))
+                    break;
+            }
+        }
+
         fputs("AT+CMGL=4\r\n", pf);
 
         char full_response[8192] = {0}; // Large buffer to store entire response
