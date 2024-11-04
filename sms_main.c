@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
 	}
 
 if (!strcmp("recv", argv[0])) {
-	alarm(10);
+    alarm(30);  // Increased timeout for better response handling
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
 
@@ -299,13 +299,29 @@ if (!strcmp("recv", argv[0])) {
 
     // Read entire modem response into full_response buffer
     while (fgets(buf, sizeof(buf), pfi)) {
-        if (starts_with("OK", buf)) {
-            break;
+        // Check for error responses
+        if (strstr(buf, "ERROR") || strstr(buf, "NO CARRIER")) {
+            fprintf(stderr, "Error received: %s", buf);
+            break;  // Exit on error
         }
-        strcat(response_ptr, buf);
+        
+        // Append the received line to full_response
+        strncat(response_ptr, buf, sizeof(full_response) - (response_ptr - full_response) - 1);
         response_ptr += strlen(buf);
+
+        // Check if we reached the end of the expected responses
+        if (starts_with("OK", buf)) {
+            break;  // Break if we encounter "OK"
+        }
+
+        // Prevent buffer overflow by checking the size
+        if (response_ptr >= full_response + sizeof(full_response) - 1) {
+            fprintf(stderr, "Buffer full, stopping read\n");
+            break;  // Stop reading if buffer is full
+        }
     }
 
+    // Process the full response
     if (jsonoutput == 1) {
         printf("{\"msg\":[");
     }
@@ -314,20 +330,17 @@ if (!strcmp("recv", argv[0])) {
     // Split full_response into individual messages
     char *msg_start = strstr(full_response, "+CMGL:");
     while (msg_start) {
-        // Find end of the current message or start of the next one
+        // Find the end of the current message or the start of the next one
         char *next_msg = strstr(msg_start + 1, "+CMGL:");
         
-        // Temporarily end current message string for isolated parsing
+        // Temporarily end the current message string for isolated parsing
         if (next_msg) {
             *next_msg = '\0';
         }
 
+        // Print the message details
         if (!first_msg) {
-            if (jsonoutput == 1) {
-                printf(",");
-            } else {
-                printf("\n");
-            }
+            printf("%s", jsonoutput == 1 ? "," : "\n");
         }
         first_msg = 0;
 
@@ -349,9 +362,10 @@ if (!strcmp("recv", argv[0])) {
             msg_content++; // Move to the start of message data
             while (msg_content && *msg_content != '\0') {
                 if (*msg_content == '\n' || starts_with("+CMGL:", msg_content)) {
-                    break;
+                    break;  // Stop if we hit the start of the next message
                 }
 
+                // Handle raw output
                 if (rawoutput == 1) {
                     if (jsonoutput == 1) {
                         printf("\"content\":\"%s\"", msg_content);
@@ -360,9 +374,10 @@ if (!strcmp("recv", argv[0])) {
                     }
                 } else {
                     int l = strlen(msg_content);
-			if (l <= 0) {
-				continue;
-			}
+                    if (l <= 0) {
+                        msg_content = strchr(msg_content + 1, '\n'); // Move to the next line
+                        continue; // Skip empty lines
+                    }
                     for (int j = 0; j < l; j += 2) {
                         pdu[j / 2] = 16 * char_to_hex(msg_content[j]) + char_to_hex(msg_content[j + 1]);
                     }
@@ -376,16 +391,18 @@ if (!strcmp("recv", argv[0])) {
                     int total_parts;
                     int part_number;
                     int skip_bytes;
-		    int sms_len;
+                    int sms_len;
 
-		    if (pdu) {
+                    if (pdu) {
                         sms_len = pdu_decode(pdu, l / 2, &sms_time, phone_str, sizeof(phone_str), sms_txt, sizeof(sms_txt), &tp_dcs_type, &ref_number, &total_parts, &part_number, &skip_bytes);
-		   	if (sms_len <= 0) {
-                        	continue;
-                    	}
-		    } else {
-			continue;
-		    }
+                        if (sms_len <= 0) {
+                            msg_content = strchr(msg_content + 1, '\n'); // Move to the next line
+                            continue; // Skip to the next line if decoding fails
+                        }
+                    } else {
+                        msg_content = strchr(msg_content + 1, '\n'); // Move to the next line
+                        continue; // Skip if PDU is not valid
+                    }
 
                     if (jsonoutput == 1) {
                         printf("\"sender\":\"%s\",", phone_str);
@@ -401,14 +418,14 @@ if (!strcmp("recv", argv[0])) {
                         printf("Date/Time: %s\n", time_data_str);
                     }
 
-			if(total_parts > 0) {
-				if(jsonoutput == 1) {
-					printf("\"reference\":%d,\"part\":%d,\"total\":%d,", ref_number, part_number, total_parts);
-				} else {
-					printf("Reference number: %d\n", ref_number);
-					printf("SMS segment %d of %d\n", part_number, total_parts);
-				}
-			}
+                    if (total_parts > 0) {
+                        if (jsonoutput == 1) {
+                            printf("\"reference\":%d,\"part\":%d,\"total\":%d,", ref_number, part_number, total_parts);
+                        } else {
+                            printf("Reference number: %d\n", ref_number);
+                            printf("SMS segment %d of %d\n", part_number, total_parts);
+                        }
+                    }
 
                     if (jsonoutput == 1) {
                         printf("\"content\":\"");
@@ -452,9 +469,9 @@ if (!strcmp("recv", argv[0])) {
                     }
                 }
 
-                msg_content = strchr(msg_content + 1, '\n');
+                msg_content = strchr(msg_content + 1, '\n'); // Move to the next line
                 if (msg_content) {
-                    msg_content++;
+                    msg_content++; // Move to the next character after the newline
                 }
             }
         }
@@ -464,13 +481,12 @@ if (!strcmp("recv", argv[0])) {
             *next_msg = '+';  // Restore "+CMGL:" in full_response
             msg_start = next_msg;
         } else {
-            break;
+            break; // Exit if no next message is found
         }
     }
     if (jsonoutput == 1) {
         printf("]}\n");
     }
-
 }
 
 
