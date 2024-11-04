@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <time.h>
 
 #include "pdu_lib/pdu.h"
 
@@ -289,6 +290,7 @@ int main(int argc, char* argv[])
 	}
 
 if (!strcmp("recv", argv[0])) {
+	alarm(10);
     // Request all messages and read them into a single buffer
     fputs("AT+CMGL=4\r\n", pf);
 
@@ -468,7 +470,7 @@ if (!strcmp("recv", argv[0])) {
     if (jsonoutput == 1) {
         printf("]}\n");
     }
-alarm(10);
+
 }
 
 
