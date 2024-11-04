@@ -304,10 +304,6 @@ if (!strcmp("recv", argv[0])) {
             fprintf(stderr, "Error received: %s", buf);
             break;  // Exit on error
         }
-        
-        // Append the received line to full_response
-        strncat(response_ptr, buf, sizeof(full_response) - (response_ptr - full_response) - 1);
-        response_ptr += strlen(buf);
 
         // Check if we reached the end of the expected responses
         if (starts_with("OK", buf)) {
@@ -319,6 +315,10 @@ if (!strcmp("recv", argv[0])) {
             fprintf(stderr, "Buffer full, stopping read\n");
             break;  // Stop reading if buffer is full
         }
+        
+        // Append the received line to full_response
+        strncat(response_ptr, buf, sizeof(full_response) - (response_ptr - full_response) - 1);
+        response_ptr += strlen(buf);
     }
 
     // Process the full response
