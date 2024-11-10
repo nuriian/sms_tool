@@ -502,6 +502,17 @@ int main(int argc, char* argv[])
 
     if (!strcmp("delete",argv[0]))
     {
+        if (strlen(storage) > 0) {
+            fputs("AT+CPMS=\"", pf);
+            fputs(storage, pf);
+            fputs("\"\r\n", pf);
+
+            while(fgets(buf, sizeof(buf), pfi)) {
+                if (starts_with("OK", buf))
+                    break;
+            }
+        }
+        
         int i = atoi(argv[1]);
         int j = i;
         if(!strcmp("all",argv[1]))
